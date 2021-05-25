@@ -6,6 +6,7 @@ class PointNet(nn.Module):
 
     def __init__(self, sampling, z_size, batch_norm):
         super().__init__()
+        self.name = 'chmurkosieć'
 
         if batch_norm:
             self._conv1 = nn.Sequential(
@@ -52,7 +53,7 @@ class PointNetClassifier(nn.Module):
 
     def __init__(self, sampling, z_size, batch_norm, num_classes):
         super().__init__()
-        self.name = 'pointnet'
+        self.name = 'chmurkosiećklasyfikator'
         self._pn = PointNet(sampling, z_size, batch_norm)
         self.sampling = sampling
 
@@ -86,9 +87,43 @@ class PointNetClassifier(nn.Module):
         )
 
     def forward(self, x):
-        print(x.shape)
         x = self._pn(x)
-        print(x.shape)
+        x = self._dense(x)
+        out = self._final(x)
+        return out
+
+
+class NakedPointNetClassifier(nn.Module):
+
+    def __init__(self, z_size, batch_norm, num_classes):
+        super().__init__()
+        self.name = 'chmurkosiećklasyfikator'
+
+        if batch_norm:
+            self._dense = nn.Sequential(
+                nn.Linear(z_size, 512),
+                nn.BatchNorm1d(512),
+                nn.ReLU(),
+
+                nn.Linear(512, 256),
+                nn.BatchNorm1d(256),
+                nn.ReLU()
+            )
+        else:
+            self._dense = nn.Sequential(
+                nn.Linear(z_size, 512),
+                nn.BatchNorm1d(512),
+                nn.ReLU(),
+
+                nn.Linear(512, 256),
+                nn.BatchNorm1d(256),
+                nn.ReLU()
+            )
+
+        self._final = nn.Linear(256, num_classes)
+
+
+    def forward(self, x):
         x = self._dense(x)
         out = self._final(x)
         return out

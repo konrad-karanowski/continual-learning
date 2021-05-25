@@ -8,6 +8,8 @@ import torch
 # point cloud dataset
 from pointcloud_dataset import ModelNet10
 
+SAMPLING = 2048
+
 
 def _permutate_image_pixels(image, permutation):
     '''Permutate the pixels of an image according to [permutation].
@@ -243,6 +245,7 @@ def get_multitask_experiment(name, scenario, tasks, data_dir="./datasets", only_
 
     # If needed, update number of (total) classes in the config-dictionary
     config['classes'] = classes_per_task if scenario == 'domain' else classes_per_task * tasks
+    config['size'] = SAMPLING
 
     # Return tuple of train-, validation- and test-dataset, config-dictionary and number of classes per task
     return config if only_config else ((train_datasets, test_datasets), config, classes_per_task)
