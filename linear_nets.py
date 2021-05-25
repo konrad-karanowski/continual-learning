@@ -4,7 +4,6 @@ import utils
 import excitability_modules as em
 
 
-
 class fc_layer(nn.Module):
     '''Fully connected layer, with possibility of returning "pre-activations".
 
@@ -14,7 +13,7 @@ class fc_layer(nn.Module):
     def __init__(self, in_size, out_size, nl=nn.ReLU(),
                  drop=0., bias=True, excitability=False, excit_buffer=False, batch_norm=False, gated=False):
         super().__init__()
-        if drop>0:
+        if drop > 0:
             self.dropout = nn.Dropout(drop)
         self.linear = em.LinearExcitability(in_size, out_size, bias=False if batch_norm else bias,
                                             excitability=excitability, excit_buffer=excit_buffer)
@@ -25,7 +24,7 @@ class fc_layer(nn.Module):
             self.sigmoid = nn.Sigmoid()
         if isinstance(nl, nn.Module):
             self.nl = nl
-        elif not nl=="none":
+        elif not nl == "none":
             self.nl = nn.ReLU() if nl == "relu" else (nn.LeakyReLU() if nl == "leakyrelu" else utils.Identity())
 
     def forward(self, x, return_pa=False):
@@ -66,7 +65,8 @@ class fc_layer_split(nn.Module):
         list += self.logvar.list_init_layers()
         return list
 
-#-----------------------------------------------------------------------------------------------------------#
+
+# -----------------------------------------------------------------------------------------------------------#
 
 class MLP(nn.Module):
     '''Module for a multi-layer perceptron (MLP).
@@ -101,50 +101,50 @@ class MLP(nn.Module):
             hidden_sizes = []
             if layers > 1:
                 if (hid_smooth is not None):
-                    hidden_sizes = [int(x) for x in np.linspace(hid_size, hid_smooth, num=layers-1)]
+                    hidden_sizes = [int(x) for x in np.linspace(hid_size, hid_smooth, num=layers - 1)]
                 else:
                     hidden_sizes = [int(x) for x in np.repeat(hid_size, layers - 1)]
             size_per_layer = [input_size] + hidden_sizes + [output_size]
-        self.layers = len(size_per_layer)-1
+        self.layers = len(size_per_layer) - 1
 
         # set label for this module
         # -determine "non-default options"-label
         nd_label = "{drop}{bias}{exc}{bn}{nl}{gate}{out}".format(
-            drop="" if drop==0 else "-drop{}".format(drop),
+            drop="" if drop == 0 else "-drop{}".format(drop),
             bias="" if bias else "-noBias", exc="-exc" if excitability else "", bn="-bn" if batch_norm else "",
-            nl="-lr" if nl=="leakyrelu" else "", gate="-gated" if gated else "",
-            out="" if output=="normal" else "-{}".format(output),
+            nl="-lr" if nl == "leakyrelu" else "", gate="-gated" if gated else "",
+            out="" if output == "normal" else "-{}".format(output),
         )
         # -set label
-        self.label = "MLP({}{})".format(size_per_layer, nd_label) if self.layers>0 else ""
+        self.label = "MLP({}{})".format(size_per_layer, nd_label) if self.layers > 0 else ""
 
         # set layers
-        for lay_id in range(1, self.layers+1):
+        for lay_id in range(1, self.layers + 1):
             # number of units of this layer's input and output
-            in_size = size_per_layer[lay_id-1]
+            in_size = size_per_layer[lay_id - 1]
             out_size = size_per_layer[lay_id]
             # define and set the fully connected layer
-            if lay_id==self.layers and output in ("logistic", "gaussian"):
+            if lay_id == self.layers and output in ("logistic", "gaussian"):
                 layer = fc_layer_split(
                     in_size, out_size, bias=bias, excitability=excitability, excit_buffer=excit_buffer, drop=drop,
                     batch_norm=False, gated=gated,
-                    nl_mean=nn.Sigmoid() if output=="logistic" else utils.Identity(),
-                    nl_logvar=nn.Hardtanh(min_val=-4.5, max_val=0.) if output=="logistic" else utils.Identity(),
+                    nl_mean=nn.Sigmoid() if output == "logistic" else utils.Identity(),
+                    nl_logvar=nn.Hardtanh(min_val=-4.5, max_val=0.) if output == "logistic" else utils.Identity(),
                 )
             else:
                 layer = fc_layer(
                     in_size, out_size, bias=bias, excitability=excitability, excit_buffer=excit_buffer, drop=drop,
-                    batch_norm=False if (lay_id==self.layers and not output=="normal") else batch_norm, gated=gated,
-                    nl=nn.Sigmoid() if (lay_id==self.layers and not output=="normal") else nl,
+                    batch_norm=False if (lay_id == self.layers and not output == "normal") else batch_norm, gated=gated,
+                    nl=nn.Sigmoid() if (lay_id == self.layers and not output == "normal") else nl,
                 )
             setattr(self, 'fcLayer{}'.format(lay_id), layer)
 
         # if no layers, add "identity"-module to indicate in this module's representation nothing happens
-        if self.layers<1:
+        if self.layers < 1:
             self.noLayers = utils.Identity()
 
     def forward(self, x):
-        for lay_id in range(1, self.layers+1):
+        for lay_id in range(1, self.layers + 1):
             x = getattr(self, 'fcLayer{}'.format(lay_id))(x)
         return x
 
@@ -155,6 +155,6 @@ class MLP(nn.Module):
     def list_init_layers(self):
         '''Return list of modules whose parameters could be initialized differently (i.e., conv- or fc-layers).'''
         list = []
-        for layer_id in range(1, self.layers+1):
+        for layer_id in range(1, self.layers + 1):
             list += getattr(self, 'fcLayer{}'.format(layer_id)).list_init_layers()
         return list

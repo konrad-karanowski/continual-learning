@@ -20,6 +20,7 @@ from exemplars import ExemplarHandler
 from replayer import Replayer
 from param_values import set_default_values
 
+
 parser = argparse.ArgumentParser('./main.py', description='Run individual continual learning experiment.')
 parser.add_argument('--get-stamp', action='store_true', help='print param-stamp & exit')
 parser.add_argument('--seed', type=int, default=0, help='random seed (for each random-module used)')
@@ -214,7 +215,7 @@ def run(args, verbose=True):
         model.lamda_pl = 1.  # --> to make that this VAE is also trained to classify
     else:
         model = Classifier(
-            image_size=config['size'], image_channels=config['channels'], classes=config['classes'],
+            sampling=config['size'], channels=config['channels'], classes=config['classes'],
             fc_layers=args.fc_lay, fc_units=args.fc_units, fc_drop=args.fc_drop, fc_nl=args.fc_nl,
             fc_bn=True if args.fc_bn == "yes" else False,
             excit_buffer=True if args.xdg and args.gating_prop > 0 else False,
@@ -612,8 +613,6 @@ def run(args, verbose=True):
         key = "acc per task"
         plot_list = []
         for i in range(args.tasks):
-            print(metrics_dict)
-            print(i)
             plot_list.append(metrics_dict[key]["task {}".format(i + 1)])
         figure = visual_plt.plot_lines(
             plot_list, x_axes=metrics_dict["x_task"],

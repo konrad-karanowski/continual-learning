@@ -5,6 +5,9 @@ from torchvision.datasets import MNIST
 from torch.utils.data import ConcatDataset, Dataset
 import torch
 
+# point cloud dataset
+from pointcloud_dataset import ModelNet10
+
 
 def _permutate_image_pixels(image, permutation):
     '''Permutate the pixels of an image according to [permutation].
@@ -36,8 +39,9 @@ def get_dataset(name, type='train', download=True, capacity=None, permutation=No
     ])
 
     # load data-set
-    dataset = dataset_class('datasets/MNIST', train=False if type == 'test' else True,
-                            download=True, transform=dataset_transform, target_transform=target_transform)
+    # dataset = dataset_class('datasets/MNIST', train=False if type == 'test' else True,
+    #                         download=True, transform=dataset_transform, target_transform=target_transform)
+    dataset = ModelNet10(split=type, classes=[])
 
     # print information about dataset on the screen
     if verbose:
