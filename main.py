@@ -114,7 +114,7 @@ eval_params.add_argument('--sample-log', type=int, default=500, metavar="N", hel
 eval_params.add_argument('--sample-n', type=int, default=64, help="# images to show")
 
 
-def run(args, verbose=False):
+def run(args, verbose=True):
     # Set default arguments & check for incompatible options
     args.lr_gen = args.lr if args.lr_gen is None else args.lr_gen
     args.g_iters = args.iters if args.g_iters is None else args.g_iters
