@@ -197,7 +197,7 @@ class Classifier(ContinualLearner, Replayer, ExemplarHandler):
                 ).sum(dim=1).mean()     #--> sum over classes, then average over batch
             else:
                 # -multiclass prediction loss
-                predL = None if y is None else F.cross_entropy(input=y_hat, target=y, reduction='mean')
+                predL = None if y is None else F.cross_entropy(input=y_hat, target=y.long(), reduction='mean')
 
             # Weigh losses
             loss_cur = predL

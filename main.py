@@ -20,7 +20,6 @@ from exemplars import ExemplarHandler
 from replayer import Replayer
 from param_values import set_default_values
 
-
 parser = argparse.ArgumentParser('./main.py', description='Run individual continual learning experiment.')
 parser.add_argument('--get-stamp', action='store_true', help='print param-stamp & exit')
 parser.add_argument('--seed', type=int, default=0, help='random seed (for each random-module used)')
@@ -49,7 +48,7 @@ model_params.add_argument('--fc-drop', type=float, default=0., help="dropout pro
 model_params.add_argument('--fc-bn', type=str, default="no", help="use batch-norm in the fc-layers (no|yes)")
 model_params.add_argument('--fc-nl', type=str, default="relu", choices=["relu", "leakyrelu"])
 model_params.add_argument('--singlehead', action='store_true', help="for Task-IL: use a 'single-headed' output layer   "
-                                                                   " (instead of a 'multi-headed' one)")
+                                                                    " (instead of a 'multi-headed' one)")
 
 # training hyperparameters / initialization
 train_params = parser.add_argument_group('Training Parameters')
@@ -97,7 +96,8 @@ store_params.add_argument('--icarl', action='store_true', help="bce-distill, use
 store_params.add_argument('--use-exemplars', action='store_true', help="use exemplars for classification")
 store_params.add_argument('--add-exemplars', action='store_true', help="add exemplars to current task's training set")
 store_params.add_argument('--budget', type=int, default=1000, dest="budget", help="how many samples can be stored?")
-store_params.add_argument('--herding', action='store_true', help="use herding to select stored data (instead of random)")
+store_params.add_argument('--herding', action='store_true',
+                          help="use herding to select stored data (instead of random)")
 store_params.add_argument('--norm-exemplars', action='store_true', help="normalize features/averages of exemplars")
 
 # evaluation parameters
@@ -114,9 +114,7 @@ eval_params.add_argument('--sample-log', type=int, default=500, metavar="N", hel
 eval_params.add_argument('--sample-n', type=int, default=64, help="# images to show")
 
 
-
 def run(args, verbose=False):
-
     # Set default arguments & check for incompatible options
     args.lr_gen = args.lr if args.lr_gen is None else args.lr_gen
     args.g_iters = args.iters if args.g_iters is None else args.g_iters
@@ -134,28 +132,28 @@ def run(args, verbose=False):
         args.bce = True
         args.bce_distill = True
     # -if XdG is selected but not the Task-IL scenario, give error
-    if (not args.scenario=="task") and args.xdg:
+    if (not args.scenario == "task") and args.xdg:
         raise ValueError("'XdG' is only compatible with the Task-IL scenario.")
     # -if EWC, SI, XdG, A-GEM or iCaRL is selected together with 'feedback', give error
     if args.feedback and (args.ewc or args.si or args.xdg or args.icarl or args.agem):
         raise NotImplementedError("EWC, SI, XdG, A-GEM and iCaRL are not supported with feedback connections.")
     # -if A-GEM is selected without any replay, give warning
-    if args.agem and args.replay=="none":
+    if args.agem and args.replay == "none":
         raise Warning("The '--agem' flag is selected, but without any type of replay. "
                       "For the original A-GEM method, also select --replay='exemplars'.")
     # -if EWC, SI, XdG, A-GEM or iCaRL is selected together with offline-replay, give error
-    if args.replay=="offline" and (args.ewc or args.si or args.xdg or args.icarl or args.agem):
+    if args.replay == "offline" and (args.ewc or args.si or args.xdg or args.icarl or args.agem):
         raise NotImplementedError("Offline replay cannot be combined with EWC, SI, XdG, A-GEM or iCaRL.")
     # -if binary classification loss is selected together with 'feedback', give error
     if args.feedback and args.bce:
         raise NotImplementedError("Binary classification loss not supported with feedback connections.")
     # -if XdG is selected together with both replay and EWC, give error (either one of them alone with XdG is fine)
-    if (args.xdg and args.gating_prop>0) and (not args.replay=="none") and (args.ewc or args.si):
+    if (args.xdg and args.gating_prop > 0) and (not args.replay == "none") and (args.ewc or args.si):
         raise NotImplementedError("XdG is not supported with both '{}' replay and EWC / SI.".format(args.replay))
-        #--> problem is that applying different task-masks interferes with gradient calculation
+        # --> problem is that applying different task-masks interferes with gradient calculation
         #    (should be possible to overcome by calculating backward step on EWC/SI-loss also for each mask separately)
     # -if 'BCEdistill' is selected for other than scenario=="class", give error
-    if args.bce_distill and not args.scenario=="class":
+    if args.bce_distill and not args.scenario == "class":
         raise ValueError("BCE-distill can only be used for class-incremental learning.")
     # -create plots- and results-directories if needed
     if not os.path.isdir(args.r_dir):
@@ -166,8 +164,8 @@ def run(args, verbose=False):
     scenario = args.scenario
     # If Task-IL scenario is chosen with single-headed output layer, set args.scenario to "domain"
     # (but note that when XdG is used, task-identity information is being used so the actual scenario is still Task-IL)
-    if args.singlehead and args.scenario=="task":
-        scenario="domain"
+    if args.singlehead and args.scenario == "task":
+        scenario = "domain"
 
     # If only want param-stamp, get it printed to screen and exit
     if hasattr(args, "get_stamp") and args.get_stamp:
@@ -186,41 +184,40 @@ def run(args, verbose=False):
     if cuda:
         torch.cuda.manual_seed(args.seed)
 
+    # -------------------------------------------------------------------------------------------------#
 
-    #-------------------------------------------------------------------------------------------------#
-
-    #----------------#
-    #----- DATA -----#
-    #----------------#
+    # ----------------#
+    # ----- DATA -----#
+    # ----------------#
 
     # Prepare data for chosen experiment
     if verbose:
         print("\nPreparing the data...")
     (train_datasets, test_datasets), config, classes_per_task = get_multitask_experiment(
         name=args.experiment, scenario=scenario, tasks=args.tasks, data_dir=args.d_dir,
-        verbose=verbose, exception=True if args.seed==0 else False,
+        verbose=verbose, exception=True if args.seed == 0 else False,
     )
 
+    # -------------------------------------------------------------------------------------------------#
 
-    #-------------------------------------------------------------------------------------------------#
-
-    #------------------------------#
-    #----- MODEL (CLASSIFIER) -----#
-    #------------------------------#
+    # ------------------------------#
+    # ----- MODEL (CLASSIFIER) -----#
+    # ------------------------------#
 
     # Define main model (i.e., classifier, if requested with feedback connections)
     if args.feedback:
         model = AutoEncoder(
             image_size=config['size'], image_channels=config['channels'], classes=config['classes'],
             fc_layers=args.fc_lay, fc_units=args.fc_units, z_dim=args.z_dim,
-            fc_drop=args.fc_drop, fc_bn=True if args.fc_bn=="yes" else False, fc_nl=args.fc_nl,
+            fc_drop=args.fc_drop, fc_bn=True if args.fc_bn == "yes" else False, fc_nl=args.fc_nl,
         ).to(device)
-        model.lamda_pl = 1. #--> to make that this VAE is also trained to classify
+        model.lamda_pl = 1.  # --> to make that this VAE is also trained to classify
     else:
         model = Classifier(
             image_size=config['size'], image_channels=config['channels'], classes=config['classes'],
             fc_layers=args.fc_lay, fc_units=args.fc_units, fc_drop=args.fc_drop, fc_nl=args.fc_nl,
-            fc_bn=True if args.fc_bn=="yes" else False, excit_buffer=True if args.xdg and args.gating_prop>0 else False,
+            fc_bn=True if args.fc_bn == "yes" else False,
+            excit_buffer=True if args.xdg and args.gating_prop > 0 else False,
             binaryCE=args.bce, binaryCE_distill=args.bce_distill, AGEM=args.agem,
         ).to(device)
 
@@ -229,30 +226,28 @@ def run(args, verbose=False):
     model.optim_type = args.optimizer
     if model.optim_type in ("adam", "adam_reset"):
         model.optimizer = optim.Adam(model.optim_list, betas=(0.9, 0.999))
-    elif model.optim_type=="sgd":
+    elif model.optim_type == "sgd":
         model.optimizer = optim.SGD(model.optim_list)
     else:
         raise ValueError("Unrecognized optimizer, '{}' is not currently a valid option".format(args.optimizer))
 
+    # -------------------------------------------------------------------------------------------------#
 
-    #-------------------------------------------------------------------------------------------------#
-
-    #----------------------------------#
-    #----- CL-STRATEGY: EXEMPLARS -----#
-    #----------------------------------#
+    # ----------------------------------#
+    # ----- CL-STRATEGY: EXEMPLARS -----#
+    # ----------------------------------#
 
     # Store in model whether, how many and in what way to store exemplars
-    if isinstance(model, ExemplarHandler) and (args.use_exemplars or args.add_exemplars or args.replay=="exemplars"):
+    if isinstance(model, ExemplarHandler) and (args.use_exemplars or args.add_exemplars or args.replay == "exemplars"):
         model.memory_budget = args.budget
         model.norm_exemplars = args.norm_exemplars
         model.herding = args.herding
 
+    # -------------------------------------------------------------------------------------------------#
 
-    #-------------------------------------------------------------------------------------------------#
-
-    #-----------------------------------#
-    #----- CL-STRATEGY: ALLOCATION -----#
-    #-----------------------------------#
+    # -----------------------------------#
+    # ----- CL-STRATEGY: ALLOCATION -----#
+    # -----------------------------------#
 
     # Elastic Weight Consolidation (EWC)
     if isinstance(model, ContinualLearner):
@@ -270,27 +265,26 @@ def run(args, verbose=False):
             model.epsilon = args.epsilon
 
     # XdG: create for every task a "mask" for each hidden fully connected layer
-    if isinstance(model, ContinualLearner) and (args.xdg and args.gating_prop>0):
+    if isinstance(model, ContinualLearner) and (args.xdg and args.gating_prop > 0):
         mask_dict = {}
         excit_buffer_list = []
         for task_id in range(args.tasks):
-            mask_dict[task_id+1] = {}
+            mask_dict[task_id + 1] = {}
             for i in range(model.fcE.layers):
-                layer = getattr(model.fcE, "fcLayer{}".format(i+1)).linear
-                if task_id==0:
+                layer = getattr(model.fcE, "fcLayer{}".format(i + 1)).linear
+                if task_id == 0:
                     excit_buffer_list.append(layer.excit_buffer)
                 n_units = len(layer.excit_buffer)
-                gated_units = np.random.choice(n_units, size=int(args.gating_prop*n_units), replace=False)
-                mask_dict[task_id+1][i] = gated_units
+                gated_units = np.random.choice(n_units, size=int(args.gating_prop * n_units), replace=False)
+                mask_dict[task_id + 1][i] = gated_units
         model.mask_dict = mask_dict
         model.excit_buffer_list = excit_buffer_list
 
+    # -------------------------------------------------------------------------------------------------#
 
-    #-------------------------------------------------------------------------------------------------#
-
-    #-------------------------------#
-    #----- CL-STRATEGY: REPLAY -----#
-    #-------------------------------#
+    # -------------------------------#
+    # ----- CL-STRATEGY: REPLAY -----#
+    # -------------------------------#
 
     # Use distillation loss (i.e., soft targets) for replayed data? (and set temperature)
     if isinstance(model, Replayer):
@@ -298,16 +292,17 @@ def run(args, verbose=False):
         model.KD_temp = args.temp
 
     # If needed, specify separate model for the generator
-    train_gen = True if (args.replay=="generative" and not args.feedback) else False
+    train_gen = True if (args.replay == "generative" and not args.feedback) else False
     if train_gen:
         # -specify architecture
         generator = AutoEncoder(
             image_size=config['size'], image_channels=config['channels'],
             fc_layers=args.g_fc_lay, fc_units=args.g_fc_uni, z_dim=args.g_z_dim, classes=config['classes'],
-            fc_drop=args.fc_drop, fc_bn=True if args.fc_bn=="yes" else False, fc_nl=args.fc_nl,
+            fc_drop=args.fc_drop, fc_bn=True if args.fc_bn == "yes" else False, fc_nl=args.fc_nl,
         ).to(device)
         # -set optimizer(s)
-        generator.optim_list = [{'params': filter(lambda p: p.requires_grad, generator.parameters()), 'lr': args.lr_gen}]
+        generator.optim_list = [
+            {'params': filter(lambda p: p.requires_grad, generator.parameters()), 'lr': args.lr_gen}]
         generator.optim_type = args.optimizer
         if generator.optim_type in ("adam", "adam_reset"):
             generator.optimizer = optim.Adam(generator.optim_list, betas=(0.9, 0.999))
@@ -316,19 +311,18 @@ def run(args, verbose=False):
     else:
         generator = None
 
+    # -------------------------------------------------------------------------------------------------#
 
-    #-------------------------------------------------------------------------------------------------#
-
-    #---------------------#
-    #----- REPORTING -----#
-    #---------------------#
+    # ---------------------#
+    # ----- REPORTING -----#
+    # ---------------------#
 
     # Get parameter-stamp (and print on screen)
     if verbose:
         print("\nParameter-stamp...")
     param_stamp = get_param_stamp(
-        args, model.name, verbose=verbose, replay=True if (not args.replay=="none") else False,
-        replay_model_name=generator.name if (args.replay=="generative" and not args.feedback) else None,
+        args, model.name, verbose=verbose, replay=True if (not args.replay == "none") else False,
+        replay_model_name=generator.name if (args.replay == "generative" and not args.feedback) else None,
     )
 
     # Print some model-characteristics on the screen
@@ -359,33 +353,33 @@ def run(args, verbose=False):
             fb="1M-" if args.feedback else "",
             replay="{}{}{}".format(args.replay, "D" if args.distill else "", "-aGEM" if args.agem else ""),
             syn="-si{}".format(args.si_c) if args.si else "",
-            ewc="-ewc{}{}".format(args.ewc_lambda,"-O{}".format(args.gamma) if args.online else "") if args.ewc else "",
-            xdg="" if (not args.xdg) or args.gating_prop==0 else "-XdG{}".format(args.gating_prop),
+            ewc="-ewc{}{}".format(args.ewc_lambda,
+                                  "-O{}".format(args.gamma) if args.online else "") if args.ewc else "",
+            xdg="" if (not args.xdg) or args.gating_prop == 0 else "-XdG{}".format(args.gating_prop),
             icarl="-iCaRL" if (args.use_exemplars and args.add_exemplars and args.bce and args.bce_distill) else "",
             bud="-bud{}".format(args.budget) if (
-                    args.use_exemplars or args.add_exemplars or args.replay=="exemplars"
+                    args.use_exemplars or args.add_exemplars or args.replay == "exemplars"
             ) else "",
         )
         visdom = {'env': env_name, 'graph': graph_name}
     else:
         visdom = None
 
+    # -------------------------------------------------------------------------------------------------#
 
-    #-------------------------------------------------------------------------------------------------#
-
-    #---------------------#
-    #----- CALLBACKS -----#
-    #---------------------#
+    # ---------------------#
+    # ----- CALLBACKS -----#
+    # ---------------------#
 
     # Callbacks for reporting on and visualizing loss
     generator_loss_cbs = [
         cb._VAE_loss_cb(log=args.loss_log, visdom=visdom, model=model if args.feedback else generator, tasks=args.tasks,
                         iters_per_task=args.iters if args.feedback else args.g_iters,
-                        replay=False if args.replay=="none" else True)
+                        replay=False if args.replay == "none" else True)
     ] if (train_gen or args.feedback) else [None]
     solver_loss_cbs = [
         cb._solver_loss_cb(log=args.loss_log, visdom=visdom, model=model, tasks=args.tasks,
-                           iters_per_task=args.iters, replay=False if args.replay=="none" else True)
+                           iters_per_task=args.iters, replay=False if args.replay == "none" else True)
     ] if (not args.feedback) else [None]
 
     # Callbacks for evaluating and plotting generated / reconstructed samples
@@ -401,7 +395,7 @@ def run(args, verbose=False):
                     iters_per_task=args.iters, test_size=args.prec_n, classes_per_task=classes_per_task,
                     scenario=scenario, with_exemplars=False)
     ] if (not args.use_exemplars) else [None]
-    #--> during training on a task, evaluation cannot be with exemplars as those are only selected after training
+    # --> during training on a task, evaluation cannot be with exemplars as those are only selected after training
     #    (instead, evaluation for visdom is only done after each task, by including callback-function into [metric_cbs])
 
     # Callbacks for calculating statists required for metrics
@@ -415,12 +409,11 @@ def run(args, verbose=False):
                     scenario=scenario, with_exemplars=True) if args.use_exemplars else None
     ]
 
+    # -------------------------------------------------------------------------------------------------#
 
-    #-------------------------------------------------------------------------------------------------#
-
-    #--------------------#
-    #----- TRAINING -----#
-    #--------------------#
+    # --------------------#
+    # ----- TRAINING -----#
+    # --------------------#
 
     if verbose:
         print("\nTraining...")
@@ -441,20 +434,19 @@ def run(args, verbose=False):
         time_file.write('{}\n'.format(training_time))
         time_file.close()
 
+    # -------------------------------------------------------------------------------------------------#
 
-    #-------------------------------------------------------------------------------------------------#
-
-    #----------------------#
-    #----- EVALUATION -----#
-    #----------------------#
+    # ----------------------#
+    # ----- EVALUATION -----#
+    # ----------------------#
 
     if verbose:
         print("\n\nEVALUATION RESULTS:")
 
     # Evaluate precision of final model on full test-set
     precs = [evaluate.validate(
-        model, test_datasets[i], verbose=False, test_size=None, task=i+1, with_exemplars=False,
-        allowed_classes=list(range(classes_per_task*i, classes_per_task*(i+1))) if scenario=="task" else None
+        model, test_datasets[i], verbose=False, test_size=None, task=i + 1, with_exemplars=False,
+        allowed_classes=list(range(classes_per_task * i, classes_per_task * (i + 1))) if scenario == "task" else None
     ) for i in range(args.tasks)]
     average_precs = sum(precs) / args.tasks
     # -print on screen
@@ -467,8 +459,9 @@ def run(args, verbose=False):
     # -with exemplars
     if args.use_exemplars:
         precs = [evaluate.validate(
-            model, test_datasets[i], verbose=False, test_size=None, task=i+1, with_exemplars=True,
-            allowed_classes=list(range(classes_per_task*i, classes_per_task*(i+1))) if scenario=="task" else None
+            model, test_datasets[i], verbose=False, test_size=None, task=i + 1, with_exemplars=True,
+            allowed_classes=list(
+                range(classes_per_task * i, classes_per_task * (i + 1))) if scenario == "task" else None
         ) for i in range(args.tasks)]
         average_precs_ex = sum(precs) / args.tasks
         # -print on screen
@@ -490,8 +483,9 @@ def run(args, verbose=False):
             BWTs = [(R.loc['after task {}'.format(args.tasks), 'task {}'.format(i + 1)] - \
                      R.loc['after task {}'.format(i + 1), 'task {}'.format(i + 1)]) for i in range(args.tasks - 1)]
             FWTs = [0. if args.use_exemplars else (
-                R.loc['after task {}'.format(i+1), 'task {}'.format(i + 2)] - R.loc['at start', 'task {}'.format(i+2)]
-            ) for i in range(args.tasks-1)]
+                    R.loc['after task {}'.format(i + 1), 'task {}'.format(i + 2)] - R.loc[
+                'at start', 'task {}'.format(i + 2)]
+            ) for i in range(args.tasks - 1)]
             forgetting = []
             for i in range(args.tasks - 1):
                 forgetting.append(max(R.iloc[1:args.tasks, i]) - R.iloc[args.tasks, i])
@@ -548,19 +542,20 @@ def run(args, verbose=False):
             ] if not args.use_exemplars else ['NA' for _ in range(args.tasks)]
             R = R.reindex(['at start'] + ['after task {}'.format(i + 1) for i in range(args.tasks)])
             BWTs = [(R.loc['after task {}'.format(args.tasks), 'task {}'.format(i + 1)] - \
-                     R.loc['after task {}'.format(i + 1), 'task {}'.format(i + 1)]) for i in range(args.tasks-1)]
+                     R.loc['after task {}'.format(i + 1), 'task {}'.format(i + 1)]) for i in range(args.tasks - 1)]
             FWTs = [0. if args.use_exemplars else (
-                R.loc['after task {}'.format(i+1), 'task {}'.format(i+2)] - R.loc['at start', 'task {}'.format(i+2)]
-            ) for i in range(args.tasks-1)]
+                    R.loc['after task {}'.format(i + 1), 'task {}'.format(i + 2)] - R.loc[
+                'at start', 'task {}'.format(i + 2)]
+            ) for i in range(args.tasks - 1)]
             forgetting = []
             for i in range(args.tasks - 1):
                 forgetting.append(max(R.iloc[1:args.tasks, i]) - R.iloc[args.tasks, i])
             R.loc['FWT (per task)'] = ['NA'] + FWTs
             R.loc['BWT (per task)'] = BWTs + ['NA']
             R.loc['F (per task)'] = forgetting + ['NA']
-            BWT = sum(BWTs) / (args.tasks-1)
-            F = sum(forgetting) / (args.tasks-1)
-            FWT = sum(FWTs) / (args.tasks-1)
+            BWT = sum(BWTs) / (args.tasks - 1)
+            F = sum(forgetting) / (args.tasks - 1)
+            FWT = sum(FWTs) / (args.tasks - 1)
             metrics_dict['BWT'] = BWT
             metrics_dict['F'] = F
             metrics_dict['FWT'] = FWT
@@ -575,12 +570,11 @@ def run(args, verbose=False):
     if verbose and args.time:
         print("=> Total training time = {:.1f} seconds\n".format(training_time))
 
+    # -------------------------------------------------------------------------------------------------#
 
-    #-------------------------------------------------------------------------------------------------#
-
-    #------------------#
-    #----- OUTPUT -----#
-    #------------------#
+    # ------------------#
+    # ----- OUTPUT -----#
+    # ------------------#
 
     # Average precision on full test set
     output_file = open("{}/prec-{}.txt".format(args.r_dir, param_stamp), 'w')
@@ -591,12 +585,11 @@ def run(args, verbose=False):
         file_name = "{}/dict-{}".format(args.r_dir, param_stamp)
         utils.save_object(metrics_dict, file_name)
 
+    # -------------------------------------------------------------------------------------------------#
 
-    #-------------------------------------------------------------------------------------------------#
-
-    #--------------------#
-    #----- PLOTTING -----#
-    #--------------------#
+    # --------------------#
+    # ----- PLOTTING -----#
+    # --------------------#
 
     # If requested, generate pdf
     if args.pdf:
@@ -605,19 +598,22 @@ def run(args, verbose=False):
         pp = visual_plt.open_pdf(plot_name)
 
         # -show samples and reconstructions (either from main model or from separate generator)
-        if args.feedback or args.replay=="generative":
+        if args.feedback or args.replay == "generative":
             evaluate.show_samples(model if args.feedback else generator, config, size=args.sample_n, pdf=pp)
             for i in range(args.tasks):
                 evaluate.show_reconstruction(model if args.feedback else generator, test_datasets[i], config, pdf=pp,
-                                             task=i+1)
+                                             task=i + 1)
 
         # -show metrics reflecting progression during training
-        figure_list = []  #-> create list to store all figures to be plotted
+        figure_list = []  # -> create list to store all figures to be plotted
 
         # -generate all figures (and store them in [figure_list])
-        key = "acc per task ({} task)".format("all classes up to trained" if scenario=='class' else "only classes in")
+        key = "acc per task ({} task)".format("all classes up to trained" if scenario == 'class' else "only classes in")
+        key = "acc per task"
         plot_list = []
         for i in range(args.tasks):
+            print(metrics_dict)
+            print(i)
             plot_list.append(metrics_dict[key]["task {}".format(i + 1)])
         figure = visual_plt.plot_lines(
             plot_list, x_axes=metrics_dict["x_task"],
@@ -640,7 +636,6 @@ def run(args, verbose=False):
         # -print name of generated plot on screen
         if verbose:
             print("\nGenerated plot: {}\n".format(plot_name))
-
 
 
 if __name__ == '__main__':

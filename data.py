@@ -1,6 +1,7 @@
 import copy
 import numpy as np
 from torchvision import datasets, transforms
+from torchvision.datasets import MNIST
 from torch.utils.data import ConcatDataset, Dataset
 import torch
 
@@ -16,7 +17,7 @@ def _permutate_image_pixels(image, permutation):
     else:
         c, h, w = image.size()
         image = image.view(c, -1)
-        image = image[:, permutation]  #--> same permutation for each channel
+        image = image[:, permutation]  # --> same permutation for each channel
         image = image.view(c, h, w)
         return image
 
@@ -25,7 +26,7 @@ def get_dataset(name, type='train', download=True, capacity=None, permutation=No
                 verbose=False, target_transform=None):
     '''Create [train|valid|test]-dataset.'''
 
-    data_name = 'mnist' if name=='mnist28' else name
+    data_name = 'mnist' if name == 'mnist28' else name
     dataset_class = AVAILABLE_DATASETS[data_name]
 
     # specify image-transformations to be applied
@@ -35,8 +36,8 @@ def get_dataset(name, type='train', download=True, capacity=None, permutation=No
     ])
 
     # load data-set
-    dataset = dataset_class('{dir}/{name}'.format(dir=dir, name=data_name), train=False if type=='test' else True,
-                            download=download, transform=dataset_transform, target_transform=target_transform)
+    dataset = dataset_class('datasets/MNIST', train=False if type == 'test' else True,
+                            download=True, transform=dataset_transform, target_transform=target_transform)
 
     # print information about dataset on the screen
     if verbose:
@@ -50,7 +51,7 @@ def get_dataset(name, type='train', download=True, capacity=None, permutation=No
     return dataset
 
 
-#----------------------------------------------------------------------------------------------------------#
+# ----------------------------------------------------------------------------------------------------------#
 
 
 class SubDataset(Dataset):
@@ -137,12 +138,12 @@ class TransformedDataset(Dataset):
         return (input, target)
 
 
-#----------------------------------------------------------------------------------------------------------#
+# ----------------------------------------------------------------------------------------------------------#
 
 
 # specify available data-sets.
 AVAILABLE_DATASETS = {
-    'mnist': datasets.MNIST,
+    'mnist': MNIST,
 }
 
 # specify available transforms.
@@ -163,7 +164,7 @@ DATASET_CONFIGS = {
 }
 
 
-#----------------------------------------------------------------------------------------------------------#
+# ----------------------------------------------------------------------------------------------------------#
 
 
 def get_multitask_experiment(name, scenario, tasks, data_dir="./datasets", only_config=False, verbose=False,
@@ -186,15 +187,15 @@ def get_multitask_experiment(name, scenario, tasks, data_dir="./datasets", only_
                                        target_transform=None, verbose=verbose)
             # generate permutations
             if exception:
-                permutations = [None] + [np.random.permutation(config['size']**2) for _ in range(tasks-1)]
+                permutations = [None] + [np.random.permutation(config['size'] ** 2) for _ in range(tasks - 1)]
             else:
-                permutations = [np.random.permutation(config['size']**2) for _ in range(tasks)]
+                permutations = [np.random.permutation(config['size'] ** 2) for _ in range(tasks)]
             # prepare datasets per task
             train_datasets = []
             test_datasets = []
             for task_id, perm in enumerate(permutations):
                 target_transform = transforms.Lambda(
-                    lambda y, x=task_id: y + x*classes_per_task
+                    lambda y, x=task_id: y + x * classes_per_task
                 ) if scenario in ('task', 'class') else None
                 train_datasets.append(TransformedDataset(
                     train_dataset, transform=transforms.Lambda(lambda x, p=perm: _permutate_image_pixels(x, p)),
@@ -206,7 +207,7 @@ def get_multitask_experiment(name, scenario, tasks, data_dir="./datasets", only_
                 ))
     elif name == 'splitMNIST':
         # check for number of tasks
-        if tasks>10:
+        if tasks > 10:
             raise ValueError("Experiment 'splitMNIST' cannot have more than 10 tasks!")
         # configurations
         config = DATASET_CONFIGS['mnist28']
@@ -230,14 +231,14 @@ def get_multitask_experiment(name, scenario, tasks, data_dir="./datasets", only_
             for labels in labels_per_task:
                 target_transform = transforms.Lambda(
                     lambda y, x=labels[0]: y - x
-                ) if scenario=='domain' else None
+                ) if scenario == 'domain' else None
                 train_datasets.append(SubDataset(mnist_train, labels, target_transform=target_transform))
                 test_datasets.append(SubDataset(mnist_test, labels, target_transform=target_transform))
     else:
         raise RuntimeError('Given undefined experiment: {}'.format(name))
 
     # If needed, update number of (total) classes in the config-dictionary
-    config['classes'] = classes_per_task if scenario=='domain' else classes_per_task*tasks
+    config['classes'] = classes_per_task if scenario == 'domain' else classes_per_task * tasks
 
     # Return tuple of train-, validation- and test-dataset, config-dictionary and number of classes per task
     return config if only_config else ((train_datasets, test_datasets), config, classes_per_task)
