@@ -7,13 +7,51 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset
 from torchvision import transforms
+import math
 
 __all__ = ['ShapeNet', 'ModelNet10', 'ModelNet40', 'ModelNet40_Auto', 'ModelNet40_Manual']
 
 
+class Normalize:
+
+    def __call__(self, x):
+        x -= np.mean(x, axis=0)
+        x = x / np.max(np.linalg.norm(x, axis=1))
+        return x
+
+
+class RandomRotation:
+
+    def __call__(self, x):
+        phi = np.random.random(1) * 2 * np.pi
+        rotation_matrix = np.array([
+            [math.cos(phi), -math.sin(phi), 0],
+            [math.sin(phi), math.cos(phi), 0],
+            [0, 0, 1]
+        ])
+        return rotation_matrix.dot(x.T).T
+
+
+class RandomNoise:
+    def __call__(self, pointcloud):
+        noise = np.random.normal(0, 0.02, pointcloud.shape)
+
+        noisy_pointcloud = pointcloud + noise
+        return noisy_pointcloud
+
+
 default_transforms = transforms.Compose([
-    transforms.ToTensor()
-])
+        Normalize(),
+        RandomRotation(),
+        RandomNoise(),
+        transforms.ToTensor()
+    ])
+
+
+test_transforms = transforms.Compose([
+        Normalize(),
+        transforms.ToTensor()
+    ])
 
 
 class PointCloudDataset(Dataset):
@@ -26,7 +64,7 @@ class PointCloudDataset(Dataset):
                  split: str = 'train'):
         self.sampling = sampling
         self.root_dir = root_dir
-        self.transform = transform
+        self.transform = default_transforms if split=='train' else test_transforms
         self.split = split.lower()
         self.urls: List[str] = [download_url] if type(download_url) is str else download_url
         self.classes: List[str] = [] if classes is None else classes
@@ -146,7 +184,7 @@ class PointCloudDataset(Dataset):
             return np.load(join(self.root_dir, f'{dataset}.npz'))
         elif dataset.startswith('modelnet'):
             split = 'train' if self.split in ['train', 'valid'] else 'test'
-            return h5py.File(join(self.root_dir, f'{dataset}_15k.hdf5'), mode='r')[split]
+            return h5py.File(join(self.root_dir, f'{dataset}.hdf5'), mode='r')[split]
 
     def add_compressed_data(self, x, y):
         self.X_c = x
@@ -199,7 +237,7 @@ class PointCloudDataset(Dataset):
 
     def _data_exists(self) -> bool:
         return (exists(join(self.root_dir, f'{type(self).__name__.lower()}.npz')) or
-                exists(join(self.root_dir, f'{type(self).__name__.lower()}_15k.hdf5')))
+                exists(join(self.root_dir, f'{type(self).__name__.lower()}.hdf5')))
 
 
 class ShapeNet(PointCloudDataset):
@@ -313,6 +351,22 @@ class ModelNet40_Manual(ModelNet):
             sampling=sampling,
             root_dir=root_dir,
             download_url='https://www.dropbox.com/s/oqpfgx3o7lw1qmz/modelnet40_manual_15k.hdf5?dl=1',
+            classes=classes,
+            transform=transform,
+            split=split)
+
+
+class ModelNet40_Stanford(ModelNet):
+    def __init__(self,
+                 sampling,
+                 root_dir: str = '/data',
+                 classes: List[str] = None,
+                 transform=default_transforms,
+                 split: str = 'train'):
+        super().__init__(
+            sampling=sampling,
+            root_dir=root_dir,
+            download_url='https://www.dropbox.com/s/ivx5aj4g0xz6pvl/modelnet40_stanford.hdf5?dl=1',
             classes=classes,
             transform=transform,
             split=split)
