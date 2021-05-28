@@ -48,7 +48,7 @@ def validate(model, dataset, batch_size=128, test_size=1024, verbose=True, allow
                 if max(predicted).item() >= model.classes:
                     predicted = predicted % model.classes
             else:
-                scores = model(data) if (allowed_classes is None) else model(data)[:, allowed_classes]
+                scores = model(data)[-1] if (allowed_classes is None) else model(data)[-1][:, allowed_classes]
                 _, predicted = torch.max(scores, 1)
         # -update statistics
         total_correct += (predicted == labels).sum().item()

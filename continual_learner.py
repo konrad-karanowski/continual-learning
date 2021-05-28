@@ -96,7 +96,7 @@ class ContinualLearner(nn.Module, metaclass=abc.ABCMeta):
                     break
             # run forward pass of model
             x = x.to(self._device())
-            output = self(x) if allowed_classes is None else self(x)[:, allowed_classes]
+            output = self(x)[-1] if allowed_classes is None else self(x)[-1][:, allowed_classes]
             if self.emp_FI:
                 # -use provided label to calculate loglikelihood --> "empirical Fisher":
                 label = torch.LongTensor([y]) if type(y)==int else y

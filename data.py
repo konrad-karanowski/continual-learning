@@ -6,7 +6,7 @@ from torch.utils.data import ConcatDataset, Dataset
 import torch
 
 # point cloud dataset
-from pointcloud_dataset import ModelNet10
+from pointcloud_dataset import ModelNet40_Stanford as ModelNet
 
 SAMPLING = 2048
 
@@ -43,7 +43,7 @@ def get_dataset(name, type='train', download=True, capacity=None, permutation=No
     # load data-set
     # dataset = dataset_class('datasets/MNIST', train=False if type == 'test' else True,
     #                         download=True, transform=dataset_transform, target_transform=target_transform)
-    dataset = ModelNet10(split=type, classes=[])
+    dataset = ModelNet(2048, split=type, classes=[])
 
     # print information about dataset on the screen
     if verbose:
@@ -238,6 +238,7 @@ def get_multitask_experiment(name, scenario, tasks, data_dir="./datasets", only_
                 target_transform = transforms.Lambda(
                     lambda y, x=labels[0]: y - x
                 ) if scenario == 'domain' else None
+                # print(labels)
                 train_datasets.append(SubDataset(mnist_train, labels, target_transform=target_transform))
                 test_datasets.append(SubDataset(mnist_test, labels, target_transform=target_transform))
     else:

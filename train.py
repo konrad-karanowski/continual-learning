@@ -46,6 +46,7 @@ def train_cl(model, train_datasets, replay_mode="none", scenario="class", classe
 
     # Loop over all tasks.
     for task, train_dataset in enumerate(train_datasets, 1):
+        print(task)
 
         # If offline replay-setting, create large database of all tasks so far
         if replay_mode == "offline" and (not scenario == "task"):
